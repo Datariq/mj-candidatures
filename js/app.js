@@ -117,6 +117,7 @@ navItems.forEach((item) => {
       currentEditId = null;
       form.reset();
       setTodayDate();
+      resetAiStatus();
     }
     navigate(view);
   });
@@ -242,6 +243,14 @@ window.appShowDetail = async function (id) {
       <span class="detail-label">R\u00e9f\u00e9rence</span>
       <span class="detail-value">${escapeHtml(app.reference || "\u2014")}</span>
     </div>
+    ${
+      app.jobUrl
+        ? `<div class="detail-row">
+      <span class="detail-label">Offre</span>
+      <span class="detail-value"><a href="${escapeHtml(app.jobUrl)}" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:underline">Voir l'offre</a></span>
+    </div>`
+        : ""
+    }
     <div class="detail-row">
       <span class="detail-label">Statut</span>
       <span class="detail-value">
@@ -325,6 +334,7 @@ function fillForm(app) {
   document.getElementById("field-skillsParagraph").value =
     app.skillsParagraph || "";
   document.getElementById("field-date").value = app.date || "";
+  document.getElementById("field-jobUrl").value = app.jobUrl || "";
 }
 
 function getFormData() {
@@ -343,6 +353,7 @@ function getFormData() {
       .getElementById("field-skillsParagraph")
       .value.trim(),
     date: document.getElementById("field-date").value.trim(),
+    jobUrl: document.getElementById("field-jobUrl").value.trim(),
   };
 }
 
@@ -379,6 +390,105 @@ document
     }
     showToast("Brouillon sauvegard\u00e9");
   });
+
+// ── AI Job Analysis ──
+const aiStatus = document.getElementById("ai-status");
+const btnAnalyze = document.getElementById("btn-analyze-job");
+
+function resetAiStatus() {
+  if (aiStatus) {
+    aiStatus.style.display = "none";
+    aiStatus.className = "ai-status";
+    aiStatus.innerHTML = "";
+  }
+}
+
+function showAiStatus(type, message) {
+  if (!aiStatus) return;
+  aiStatus.style.display = "block";
+  aiStatus.className = `ai-status ${type}`;
+  if (type === "loading") {
+    aiStatus.innerHTML = `<span class="ai-spinner"></span>${escapeHtml(message)}`;
+  } else {
+    aiStatus.textContent = message;
+  }
+}
+
+function fillFormFromAI(data) {
+  const fields = [
+    "company",
+    "address",
+    "postalCode",
+    "city",
+    "jobTitle",
+    "reference",
+    "recruiter",
+    "skillsParagraph",
+    "motivationParagraph",
+  ];
+  for (const key of fields) {
+    if (data[key]) {
+      const el = document.getElementById(`field-${key}`);
+      if (el) el.value = data[key];
+    }
+  }
+}
+
+async function analyzeJobUrl() {
+  const urlInput = document.getElementById("field-jobUrl");
+  const url = urlInput?.value.trim();
+
+  if (!url) {
+    showAiStatus("error", "Veuillez entrer une URL");
+    return;
+  }
+
+  try {
+    new URL(url);
+  } catch {
+    showAiStatus("error", "URL invalide");
+    return;
+  }
+
+  showAiStatus("loading", "Analyse de l'offre en cours...");
+  btnAnalyze.disabled = true;
+
+  try {
+    const profilePayload = profile
+      ? {
+          fullName: profile.fullName,
+          jobTitle: profile.jobTitle,
+          accroche: profile.accroche,
+          letterExperience: profile.letterExperience,
+          skills: profile.skills,
+          qualities: profile.qualities,
+          tools: profile.tools,
+        }
+      : null;
+
+    const res = await fetch("/api/analyze-job", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, profile: profilePayload }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showAiStatus("error", data.error || "Erreur lors de l'analyse");
+      return;
+    }
+
+    fillFormFromAI(data);
+    showAiStatus("success", "Formulaire rempli automatiquement !");
+  } catch (err) {
+    showAiStatus("error", "Erreur de connexion au service d'analyse");
+  } finally {
+    btnAnalyze.disabled = false;
+  }
+}
+
+btnAnalyze?.addEventListener("click", analyzeJobUrl);
 
 // ── Preview ──
 async function renderPreview() {

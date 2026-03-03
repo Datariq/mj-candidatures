@@ -1,4 +1,4 @@
-const CACHE_NAME = "mj-candidatures-v3";
+const CACHE_NAME = "mj-candidatures-v4";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -47,6 +47,11 @@ self.addEventListener("activate", (event) => {
 // Fetch: cache-first for static, network-first for CDN
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+
+  // API routes: always network, never cache
+  if (url.pathname.startsWith("/api/")) {
+    return;
+  }
 
   // Supabase API calls: always network, never cache
   if (url.hostname.endsWith(".supabase.co")) {

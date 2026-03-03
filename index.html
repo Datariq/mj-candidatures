@@ -119,6 +119,28 @@
       <!-- ═══ VIEW: NEW / EDIT FORM ═══ -->
       <section id="view-form" class="view">
         <form id="candidature-form" class="card">
+          <div class="form-section ai-section">
+            <h3>Analyse IA d'une offre</h3>
+            <div class="ai-input-row">
+              <div class="form-group" style="flex: 1; margin-bottom: 0">
+                <label for="field-jobUrl">URL de l'offre d'emploi</label>
+                <input
+                  type="url"
+                  id="field-jobUrl"
+                  placeholder="https://www.indeed.fr/..."
+                />
+              </div>
+              <button
+                type="button"
+                id="btn-analyze-job"
+                class="btn btn-primary btn-sm"
+              >
+                Analyser
+              </button>
+            </div>
+            <div id="ai-status" class="ai-status" style="display: none"></div>
+          </div>
+
           <div class="form-section">
             <h3>Entreprise</h3>
             <div class="form-group">

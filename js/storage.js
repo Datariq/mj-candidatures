@@ -6,6 +6,7 @@ function toSnakeCase(data) {
   const map = {
     postalCode: "postal_code",
     jobTitle: "job_title",
+    jobUrl: "job_url",
     motivationParagraph: "motivation_paragraph",
     skillsParagraph: "skills_paragraph",
     createdAt: "created_at",
@@ -21,6 +22,7 @@ function toCamelCase(row) {
   const map = {
     postal_code: "postalCode",
     job_title: "jobTitle",
+    job_url: "jobUrl",
     motivation_paragraph: "motivationParagraph",
     skills_paragraph: "skillsParagraph",
     created_at: "createdAt",

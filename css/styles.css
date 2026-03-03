@@ -781,6 +781,66 @@ body {
   min-height: 60px;
 }
 
+/* ── AI SECTION ── */
+.ai-section {
+  background: var(--accent-light);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.ai-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.ai-input-row .btn {
+  flex-shrink: 0;
+  height: 42px;
+}
+
+.ai-status {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+}
+
+.ai-status.loading {
+  background: #eef2ff;
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-status.error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.ai-status.success {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.ai-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ── RESPONSIVE ── */
 @media (min-width: 768px) {
   .view {
@@ -809,5 +869,16 @@ body {
   .modal-content {
     border-radius: var(--radius);
     max-height: 70vh;
+  }
+}
+
+@media (max-width: 767px) {
+  .ai-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ai-input-row .btn {
+    width: 100%;
   }
 }
