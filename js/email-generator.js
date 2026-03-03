@@ -1,41 +1,46 @@
-export function generateEmailText({ jobTitle, company, recruiter }) {
+export function generateEmailText({ jobTitle, company, recruiter }, profile) {
+  const p = profile;
   const greeting = recruiter ? `${recruiter}` : "Madame, Monsieur";
+  const body = p.emailBody || "";
 
-  return `Objet : Candidature — ${jobTitle} — Marie Julien
+  return `Objet : Candidature \u2014 ${jobTitle} \u2014 ${p.fullName}
 
 ${greeting},
 
 Veuillez trouver ci-joint ma candidature pour le poste de ${jobTitle} au sein de ${company}.
 
-Mon CV ainsi que ma lettre de motivation détaillent mon parcours de plus de 10 ans en coordination de projets, gestion administrative et pilotage opérationnel, notamment chez BGL BNP Paribas où je gère actuellement des projets complexes et pluridisciplinaires.
+${body}
 
-Je serais ravie d'échanger avec vous afin de vous présenter plus en détail ma candidature.
+Je serais ravie d\u2019\u00e9changer avec vous afin de vous pr\u00e9senter plus en d\u00e9tail ma candidature.
 
 Cordialement,
-Marie Julien
-+33 6 18 87 74 48
-julien.marie2@gmail.com`;
+${p.fullName}
+${p.phone}
+${p.email}`;
 }
 
-export function generateMailtoLink({ jobTitle, company, recruiter }) {
+export function generateMailtoLink({ jobTitle, company, recruiter }, profile) {
+  const p = profile;
   const subject = encodeURIComponent(
-    `Candidature — ${jobTitle} — Marie Julien`,
+    `Candidature \u2014 ${jobTitle} \u2014 ${p.fullName}`,
   );
   const greeting = recruiter ? recruiter : "Madame, Monsieur";
-  const body = encodeURIComponent(`${greeting},
+  const body = p.emailBody || "";
+
+  const bodyText = encodeURIComponent(`${greeting},
 
 Veuillez trouver ci-joint ma candidature pour le poste de ${jobTitle} au sein de ${company}.
 
-Mon CV ainsi que ma lettre de motivation détaillent mon parcours de plus de 10 ans en coordination de projets, gestion administrative et pilotage opérationnel, notamment chez BGL BNP Paribas où je gère actuellement des projets complexes et pluridisciplinaires.
+${body}
 
-Je serais ravie d'échanger avec vous afin de vous présenter plus en détail ma candidature.
+Je serais ravie d\u2019\u00e9changer avec vous afin de vous pr\u00e9senter plus en d\u00e9tail ma candidature.
 
 Cordialement,
-Marie Julien
-+33 6 18 87 74 48
-julien.marie2@gmail.com`);
+${p.fullName}
+${p.phone}
+${p.email}`);
 
-  return `mailto:?subject=${subject}&body=${body}`;
+  return `mailto:?subject=${subject}&body=${bodyText}`;
 }
 
 export async function copyToClipboard(text) {
@@ -43,7 +48,6 @@ export async function copyToClipboard(text) {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    // Fallback
     const textarea = document.createElement("textarea");
     textarea.value = text;
     textarea.style.cssText = "position:fixed;left:-9999px;";

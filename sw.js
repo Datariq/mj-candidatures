@@ -1,4 +1,4 @@
-const CACHE_NAME = "mj-candidatures-v2";
+const CACHE_NAME = "mj-candidatures-v3";
 const STATIC_ASSETS = [
   "./",
   "./index.html",

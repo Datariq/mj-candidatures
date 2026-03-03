@@ -7,6 +7,9 @@ import {
   uploadDocument,
   getDocumentUrl,
   listDocuments,
+  getProfile,
+  saveProfile,
+  DEFAULT_PROFILE,
   STATUSES,
 } from "./storage.js";
 import { generateLetter } from "../templates/letter-template.js";
@@ -25,6 +28,8 @@ let currentEditId = null;
 let applications = [];
 let currentFilter = "all";
 let currentUser = null;
+let profile = null;
+let editingProfile = false;
 
 // ── DOM refs ──
 const loginScreen = document.getElementById("login-screen");
@@ -32,7 +37,6 @@ const appShell = document.getElementById("app-shell");
 const loginForm = document.getElementById("login-form");
 const loginError = document.getElementById("login-error");
 const btnLogout = document.getElementById("btn-logout");
-
 const views = {
   list: document.getElementById("view-list"),
   form: document.getElementById("view-form"),
@@ -54,9 +58,10 @@ function showLogin() {
   loginError.textContent = "";
 }
 
-function showApp() {
+async function showApp() {
   loginScreen.style.display = "none";
   appShell.style.display = "block";
+  profile = (await getProfile()) || { ...DEFAULT_PROFILE };
   navigate("list");
 }
 
@@ -64,9 +69,7 @@ loginForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value;
-  const action = e.submitter?.dataset?.action || "login";
   loginError.textContent = "";
-
   try {
     await signIn(email, password);
   } catch (err) {
@@ -81,36 +84,28 @@ btnLogout?.addEventListener("click", async () => {
 
 onAuthStateChange((user) => {
   currentUser = user;
-  if (user) {
-    showApp();
-  } else {
-    showLogin();
-  }
+  if (user) showApp();
+  else showLogin();
 });
 
-// Check initial session
 (async () => {
   const user = await getUser();
   currentUser = user;
-  if (user) {
-    showApp();
-  } else {
-    showLogin();
-  }
+  if (user) showApp();
+  else showLogin();
 })();
 
 // ── Navigation ──
 function navigate(view) {
+  editingProfile = false;
   Object.values(views).forEach((v) => v.classList.remove("active"));
   views[view].classList.add("active");
   navItems.forEach((n) => n.classList.remove("active"));
   document.querySelector(`[data-view="${view}"]`)?.classList.add("active");
   currentView = view;
-
   if (view === "list") refreshList();
-  if (view === "cv") renderCV();
+  if (view === "cv") renderCVView();
   if (view === "preview" && currentEditId) renderPreview();
-
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -158,7 +153,7 @@ function renderList() {
           <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
         </svg>
         <h3>Aucune candidature</h3>
-        <p>${currentFilter === "all" ? "Commencez par créer votre première candidature" : "Aucune candidature avec ce statut"}</p>
+        <p>${currentFilter === "all" ? "Commencez par cr\u00e9er votre premi\u00e8re candidature" : "Aucune candidature avec ce statut"}</p>
         <button class="btn btn-accent" onclick="document.querySelector('[data-view=form]').click()">
           Nouvelle candidature
         </button>
@@ -203,16 +198,13 @@ document.querySelectorAll(".filter-chip").forEach((chip) => {
 window.appShowDetail = async function (id) {
   const app = await getApplicationById(id);
   if (!app) return;
-
   const status = STATUSES.find((s) => s.value === app.status) || STATUSES[0];
   const detailBody = document.getElementById("detail-body");
-
   const statusOptions = STATUSES.map(
     (s) =>
       `<option value="${s.value}" ${s.value === app.status ? "selected" : ""} style="background:${s.color};color:#fff">${s.label}</option>`,
   ).join("");
 
-  // Fetch documents for this application
   let docsHtml = "";
   try {
     const docs = await listDocuments(app.id);
@@ -226,7 +218,7 @@ window.appShowDetail = async function (id) {
         </div>`;
     }
   } catch {
-    // Ignore storage errors
+    // ignore
   }
 
   detailBody.innerHTML = `
@@ -240,15 +232,15 @@ window.appShowDetail = async function (id) {
     </div>
     <div class="detail-row">
       <span class="detail-label">Date</span>
-      <span class="detail-value">${escapeHtml(app.date || "—")}</span>
+      <span class="detail-value">${escapeHtml(app.date || "\u2014")}</span>
     </div>
     <div class="detail-row">
       <span class="detail-label">Recruteur</span>
-      <span class="detail-value">${escapeHtml(app.recruiter || "—")}</span>
+      <span class="detail-value">${escapeHtml(app.recruiter || "\u2014")}</span>
     </div>
     <div class="detail-row">
-      <span class="detail-label">Référence</span>
-      <span class="detail-value">${escapeHtml(app.reference || "—")}</span>
+      <span class="detail-label">R\u00e9f\u00e9rence</span>
+      <span class="detail-value">${escapeHtml(app.reference || "\u2014")}</span>
     </div>
     <div class="detail-row">
       <span class="detail-label">Statut</span>
@@ -261,11 +253,10 @@ window.appShowDetail = async function (id) {
     ${docsHtml}
     <div style="margin-top:16px" class="btn-group">
       <button class="btn btn-primary btn-sm" onclick="window.appEditApplication(${app.id})">Modifier</button>
-      <button class="btn btn-outline btn-sm" onclick="window.appPreviewApplication(${app.id})">Aperçu</button>
+      <button class="btn btn-outline btn-sm" onclick="window.appPreviewApplication(${app.id})">Aper\u00e7u</button>
       <button class="btn btn-danger btn-sm" onclick="window.appDeleteApplication(${app.id})">Supprimer</button>
     </div>
   `;
-
   modal.classList.add("active");
 };
 
@@ -278,7 +269,7 @@ window.appDownloadDoc = async function (path, filename) {
     a.target = "_blank";
     a.click();
   } catch {
-    showToast("Erreur lors du téléchargement");
+    showToast("Erreur lors du t\u00e9l\u00e9chargement");
   }
 };
 
@@ -286,7 +277,7 @@ window.appUpdateStatus = async function (id, newStatus, selectEl) {
   await updateApplication(id, { status: newStatus });
   const status = STATUSES.find((s) => s.value === newStatus);
   if (status && selectEl) selectEl.style.background = status.color;
-  showToast("Statut mis à jour");
+  showToast("Statut mis \u00e0 jour");
   refreshList();
 };
 
@@ -309,11 +300,10 @@ window.appDeleteApplication = async function (id) {
   if (!confirm("Supprimer cette candidature ?")) return;
   await deleteApplication(id);
   modal.classList.remove("active");
-  showToast("Candidature supprimée");
+  showToast("Candidature supprim\u00e9e");
   refreshList();
 };
 
-// Close modal
 document.querySelector(".modal-close")?.addEventListener("click", () => {
   modal.classList.remove("active");
 });
@@ -359,30 +349,26 @@ function getFormData() {
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const data = getFormData();
-
   if (!data.company || !data.jobTitle) {
     showToast("Entreprise et poste sont requis");
     return;
   }
-
   if (currentEditId) {
     await updateApplication(currentEditId, data);
-    showToast("Candidature mise à jour");
+    showToast("Candidature mise \u00e0 jour");
   } else {
     currentEditId = await createApplication(data);
-    showToast("Candidature créée");
+    showToast("Candidature cr\u00e9\u00e9e");
   }
-
   navigate("preview");
 });
 
-// Save draft button
 document
   .getElementById("btn-save-draft")
   ?.addEventListener("click", async () => {
     const data = getFormData();
     if (!data.company && !data.jobTitle) {
-      showToast("Remplissez au moins l'entreprise ou le poste");
+      showToast("Remplissez au moins l\u2019entreprise ou le poste");
       return;
     }
     data.status = "brouillon";
@@ -391,7 +377,7 @@ document
     } else {
       currentEditId = await createApplication(data);
     }
-    showToast("Brouillon sauvegardé");
+    showToast("Brouillon sauvegard\u00e9");
   });
 
 // ── Preview ──
@@ -399,54 +385,57 @@ async function renderPreview() {
   if (!currentEditId) return;
   const app = await getApplicationById(currentEditId);
   if (!app) return;
-
-  const letterHtml = generateLetter(app);
+  const letterHtml = generateLetter(app, profile);
   previewFrame.srcdoc = letterHtml;
 }
 
-// PDF buttons — generate + upload to Supabase
+// ── PDF helpers ──
+function sanitizeFilename(str) {
+  return str.replace(/[^a-zA-Z0-9\u00C0-\u017F_-]/g, "_").replace(/_+/g, "_");
+}
+
+function pdfName(type, app) {
+  const name = sanitizeFilename(profile.fullName);
+  if (type === "cv") return `CV_${name}.pdf`;
+  const co = sanitizeFilename(app.company);
+  return `LM_${name}_${co}.pdf`;
+}
+
+// PDF buttons
 document
   .getElementById("btn-pdf-letter")
   ?.addEventListener("click", async () => {
     if (!currentEditId) return;
     const app = await getApplicationById(currentEditId);
     if (!app) return;
-
-    const filename = `Lettre_Motivation_Marie_Julien_${app.company.replace(/\s+/g, "_")}.pdf`;
-    showToast("Génération du PDF...");
-
-    const html = generateLetter(app);
-    // Download locally
+    const filename = pdfName("letter", app);
+    showToast("G\u00e9n\u00e9ration du PDF...");
+    const html = generateLetter(app, profile);
     await generatePDF(html, filename);
-
-    // Upload to Supabase Storage
     try {
       const blob = await generatePDFBlob(html, filename);
       await uploadDocument(blob, currentEditId, filename);
-      showToast("PDF lettre téléchargé et sauvegardé");
+      showToast("PDF lettre t\u00e9l\u00e9charg\u00e9 et sauvegard\u00e9");
     } catch {
-      showToast("PDF téléchargé (erreur sauvegarde cloud)");
+      showToast("PDF t\u00e9l\u00e9charg\u00e9 (erreur sauvegarde cloud)");
     }
   });
 
 document.getElementById("btn-pdf-cv")?.addEventListener("click", async () => {
-  const filename = "CV_Marie_Julien.pdf";
-  showToast("Génération du PDF...");
-
-  const html = generateCV();
+  const filename = pdfName("cv");
+  showToast("G\u00e9n\u00e9ration du PDF...");
+  const html = generateCV(profile);
   await generatePDF(html, filename);
-
-  // Upload CV to Supabase if we have a current application
   if (currentEditId) {
     try {
       const blob = await generatePDFBlob(html, filename);
       await uploadDocument(blob, currentEditId, filename);
-      showToast("PDF CV téléchargé et sauvegardé");
+      showToast("PDF CV t\u00e9l\u00e9charg\u00e9 et sauvegard\u00e9");
     } catch {
-      showToast("PDF téléchargé (erreur sauvegarde cloud)");
+      showToast("PDF t\u00e9l\u00e9charg\u00e9 (erreur sauvegarde cloud)");
     }
   } else {
-    showToast("PDF CV téléchargé");
+    showToast("PDF CV t\u00e9l\u00e9charg\u00e9");
   }
 });
 
@@ -457,32 +446,303 @@ document
     if (!currentEditId) return;
     const app = await getApplicationById(currentEditId);
     if (!app) return;
-    const emailText = generateEmailText(app);
+    const emailText = generateEmailText(app, profile);
     await copyToClipboard(emailText);
-    showToast("Email copié dans le presse-papier");
+    showToast("Email copi\u00e9 dans le presse-papier");
   });
 
 document.getElementById("btn-mailto")?.addEventListener("click", async () => {
   if (!currentEditId) return;
   const app = await getApplicationById(currentEditId);
   if (!app) return;
-  const link = generateMailtoLink(app);
+  const link = generateMailtoLink(app, profile);
   window.open(link, "_blank");
 });
 
-// Mark as sent
 document
   .getElementById("btn-mark-sent")
   ?.addEventListener("click", async () => {
     if (!currentEditId) return;
-    await updateApplication(currentEditId, { status: "envoyée" });
-    showToast("Candidature marquée comme envoyée");
+    await updateApplication(currentEditId, { status: "envoy\u00e9e" });
+    showToast("Candidature marqu\u00e9e comme envoy\u00e9e");
   });
 
 // ── CV view ──
-function renderCV() {
-  const html = generateCV();
-  cvFrame.srcdoc = html;
+function renderCVView() {
+  const container = document.getElementById("cv-content");
+  if (editingProfile) {
+    renderProfileEditor(container);
+  } else {
+    container.innerHTML = `
+      <div class="cv-frame">
+        <iframe id="cv-iframe-inner" title="CV"></iframe>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+        <button id="btn-pdf-cv-inner" class="btn btn-accent btn-sm" style="flex:1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"/>
+          </svg>
+          T\u00e9l\u00e9charger le CV en PDF
+        </button>
+        <button id="btn-edit-profile" class="btn btn-outline btn-sm" style="flex:1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Modifier mon profil
+        </button>
+      </div>
+    `;
+    const innerFrame = document.getElementById("cv-iframe-inner");
+    innerFrame.srcdoc = generateCV(profile);
+    document
+      .getElementById("btn-pdf-cv-inner")
+      .addEventListener("click", () => {
+        document.getElementById("btn-pdf-cv")?.click();
+      });
+    document
+      .getElementById("btn-edit-profile")
+      .addEventListener("click", () => {
+        editingProfile = true;
+        renderCVView();
+      });
+  }
+}
+
+// ── Profile Editor ──
+function renderProfileEditor(container) {
+  const p = profile;
+  container.innerHTML = `
+    <div class="card profile-editor">
+      <div class="form-section"><h3>Modifier mon profil</h3></div>
+
+      <details open>
+        <summary>Informations personnelles</summary>
+        <div class="profile-section-body">
+          <div class="form-group"><label>Nom complet</label><input id="p-fullName" value="${esc(p.fullName)}"></div>
+          <div class="form-group"><label>Initiales</label><input id="p-initials" value="${esc(p.initials)}"></div>
+          <div class="form-group"><label>Titre professionnel</label><input id="p-jobTitle" value="${esc(p.jobTitle)}"></div>
+          <div class="form-group"><label>Email</label><input id="p-email" value="${esc(p.email)}"></div>
+          <div class="form-group"><label>T\u00e9l\u00e9phone</label><input id="p-phone" value="${esc(p.phone)}"></div>
+          <div class="form-group"><label>Localisation</label><input id="p-location" value="${esc(p.location)}"></div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Lettre de motivation (textes par d\u00e9faut)</summary>
+        <div class="profile-section-body">
+          <div class="form-group">
+            <label>Paragraphe d\u2019introduction <small style="color:var(--text-light)">\u2014 {poste} et {entreprise} seront remplac\u00e9s automatiquement</small></label>
+            <textarea id="p-letterIntro" rows="4">${esc(p.letterIntro)}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Paragraphe exp\u00e9rience actuelle</label>
+            <textarea id="p-letterExperience" rows="4">${esc(p.letterExperience)}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Corps de l\u2019email de candidature</label>
+            <textarea id="p-emailBody" rows="3">${esc(p.emailBody || "")}</textarea>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>CV \u2014 Accroche</summary>
+        <div class="profile-section-body">
+          <div class="form-group"><label>Accroche / r\u00e9sum\u00e9</label><textarea id="p-accroche" rows="3">${esc(p.accroche)}</textarea></div>
+        </div>
+      </details>
+
+      <details>
+        <summary>CV \u2014 Comp\u00e9tences</summary>
+        <div class="profile-section-body">
+          <div id="p-skills-container">
+            ${(p.skills || []).map((g, i) => skillGroupCard(g, i)).join("")}
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-add-skill-group" style="margin-top:8px">+ Groupe</button>
+        </div>
+      </details>
+
+      <details>
+        <summary>CV \u2014 Qualit\u00e9s, Outils, Langues, Infos</summary>
+        <div class="profile-section-body">
+          <div class="form-group"><label>Qualit\u00e9s <small>(une par ligne)</small></label><textarea id="p-qualities" rows="4">${esc((p.qualities || []).join("\n"))}</textarea></div>
+          <div class="form-group"><label>Logiciels & outils <small>(un par ligne)</small></label><textarea id="p-tools" rows="4">${esc((p.tools || []).join("\n"))}</textarea></div>
+          <div class="form-group"><label>Langues <small>(format : Nom | Niveau, une par ligne)</small></label><textarea id="p-languages" rows="2">${esc((p.languages || []).map((l) => l.name + " | " + l.level).join("\n"))}</textarea></div>
+          <div class="form-group"><label>Infos compl\u00e9mentaires <small>(une par ligne)</small></label><textarea id="p-extraInfo" rows="2">${esc((p.extraInfo || []).join("\n"))}</textarea></div>
+          <div class="form-group"><label>Centres d\u2019int\u00e9r\u00eat <small>(un par ligne)</small></label><textarea id="p-interests" rows="2">${esc((p.interests || []).join("\n"))}</textarea></div>
+        </div>
+      </details>
+
+      <details>
+        <summary>CV \u2014 Exp\u00e9riences professionnelles</summary>
+        <div class="profile-section-body">
+          <div id="p-exp-container">
+            ${(p.experiences || []).map((exp, i) => expCard(exp, i)).join("")}
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-add-exp" style="margin-top:8px">+ Exp\u00e9rience</button>
+        </div>
+      </details>
+
+      <details>
+        <summary>CV \u2014 Formation</summary>
+        <div class="profile-section-body">
+          <div id="p-edu-container">
+            ${(p.education || []).map((edu, i) => eduCard(edu, i)).join("")}
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-add-edu" style="margin-top:8px">+ Formation</button>
+        </div>
+      </details>
+
+      <div class="btn-group" style="margin-top:20px">
+        <button type="button" id="btn-save-profile" class="btn btn-accent" style="flex:1">Sauvegarder</button>
+        <button type="button" id="btn-cancel-profile" class="btn btn-outline">Retour au CV</button>
+      </div>
+    </div>
+  `;
+
+  // Event listeners
+  document
+    .getElementById("btn-save-profile")
+    .addEventListener("click", handleSaveProfile);
+  document
+    .getElementById("btn-cancel-profile")
+    .addEventListener("click", () => {
+      editingProfile = false;
+      renderCVView();
+    });
+  document.getElementById("btn-add-exp").addEventListener("click", () => {
+    const c = document.getElementById("p-exp-container");
+    c.insertAdjacentHTML(
+      "beforeend",
+      expCard(
+        { company: "", dates: "", role: "", location: "", tasks: [] },
+        c.children.length,
+      ),
+    );
+  });
+  document.getElementById("btn-add-edu").addEventListener("click", () => {
+    const c = document.getElementById("p-edu-container");
+    c.insertAdjacentHTML(
+      "beforeend",
+      eduCard({ diploma: "", school: "", year: "" }, c.children.length),
+    );
+  });
+  document
+    .getElementById("btn-add-skill-group")
+    .addEventListener("click", () => {
+      const c = document.getElementById("p-skills-container");
+      c.insertAdjacentHTML(
+        "beforeend",
+        skillGroupCard({ group: "", items: [] }, c.children.length),
+      );
+    });
+
+  container.addEventListener("click", (e) => {
+    if (e.target.closest(".btn-remove-card")) {
+      e.target.closest(".profile-card").remove();
+    }
+  });
+}
+
+function skillGroupCard(g, i) {
+  return `<div class="profile-card">
+    <button type="button" class="btn-remove-card">&times;</button>
+    <div class="form-group"><label>Nom du groupe</label><input class="sg-group" value="${esc(g.group)}"></div>
+    <div class="form-group"><label>Comp\u00e9tences <small>(une par ligne)</small></label><textarea class="sg-items" rows="4">${esc(g.items.join("\n"))}</textarea></div>
+  </div>`;
+}
+
+function expCard(exp, i) {
+  return `<div class="profile-card">
+    <button type="button" class="btn-remove-card">&times;</button>
+    <div class="form-row"><div class="form-group"><label>Entreprise</label><input class="exp-company" value="${esc(exp.company)}"></div>
+    <div class="form-group"><label>Dates</label><input class="exp-dates" value="${esc(exp.dates)}"></div></div>
+    <div class="form-group"><label>R\u00f4le / poste</label><input class="exp-role" value="${esc(exp.role)}"></div>
+    <div class="form-group"><label>Lieu | Contrat</label><input class="exp-location" value="${esc(exp.location)}"></div>
+    <div class="form-group"><label>T\u00e2ches <small>(une par ligne, format \u00ab Titre : description \u00bb pour mettre le titre en gras)</small></label><textarea class="exp-tasks" rows="4">${esc(exp.tasks.join("\n"))}</textarea></div>
+  </div>`;
+}
+
+function eduCard(edu, i) {
+  return `<div class="profile-card">
+    <button type="button" class="btn-remove-card">&times;</button>
+    <div class="form-row">
+      <div class="form-group"><label>Dipl\u00f4me</label><input class="edu-diploma" value="${esc(edu.diploma)}"></div>
+      <div class="form-group"><label>Ann\u00e9e</label><input class="edu-year" value="${esc(edu.year)}"></div>
+    </div>
+    <div class="form-group"><label>\u00c9tablissement</label><input class="edu-school" value="${esc(edu.school)}"></div>
+  </div>`;
+}
+
+function lines(str) {
+  return str
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+async function handleSaveProfile() {
+  const newProfile = {
+    fullName: document.getElementById("p-fullName").value.trim(),
+    initials: document.getElementById("p-initials").value.trim(),
+    jobTitle: document.getElementById("p-jobTitle").value.trim(),
+    email: document.getElementById("p-email").value.trim(),
+    phone: document.getElementById("p-phone").value.trim(),
+    location: document.getElementById("p-location").value.trim(),
+    letterIntro: document.getElementById("p-letterIntro").value.trim(),
+    letterExperience: document
+      .getElementById("p-letterExperience")
+      .value.trim(),
+    emailBody: document.getElementById("p-emailBody").value.trim(),
+    accroche: document.getElementById("p-accroche").value.trim(),
+    skills: Array.from(
+      document.querySelectorAll("#p-skills-container .profile-card"),
+    )
+      .map((card) => ({
+        group: card.querySelector(".sg-group").value.trim(),
+        items: lines(card.querySelector(".sg-items").value),
+      }))
+      .filter((s) => s.group),
+    qualities: lines(document.getElementById("p-qualities").value),
+    tools: lines(document.getElementById("p-tools").value),
+    languages: lines(document.getElementById("p-languages").value).map((l) => {
+      const [name, level] = l.split("|").map((s) => s.trim());
+      return { name: name || l, level: level || "" };
+    }),
+    extraInfo: lines(document.getElementById("p-extraInfo").value),
+    interests: lines(document.getElementById("p-interests").value),
+    experiences: Array.from(
+      document.querySelectorAll("#p-exp-container .profile-card"),
+    )
+      .map((card) => ({
+        company: card.querySelector(".exp-company").value.trim(),
+        dates: card.querySelector(".exp-dates").value.trim(),
+        role: card.querySelector(".exp-role").value.trim(),
+        location: card.querySelector(".exp-location").value.trim(),
+        tasks: lines(card.querySelector(".exp-tasks").value),
+      }))
+      .filter((e) => e.company),
+    education: Array.from(
+      document.querySelectorAll("#p-edu-container .profile-card"),
+    )
+      .map((card) => ({
+        diploma: card.querySelector(".edu-diploma").value.trim(),
+        school: card.querySelector(".edu-school").value.trim(),
+        year: card.querySelector(".edu-year").value.trim(),
+      }))
+      .filter((e) => e.diploma),
+  };
+
+  try {
+    await saveProfile(newProfile);
+    profile = { ...DEFAULT_PROFILE, ...newProfile };
+    editingProfile = false;
+    renderCVView();
+    showToast("Profil sauvegard\u00e9");
+  } catch (err) {
+    showToast("Erreur : " + err.message);
+  }
 }
 
 // ── Toast ──
@@ -500,7 +760,16 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ── PWA install prompt ──
+function esc(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// ── PWA ──
 let deferredPrompt;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
@@ -517,7 +786,6 @@ window.addEventListener("beforeinstallprompt", (e) => {
   }
 });
 
-// Register service worker
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
