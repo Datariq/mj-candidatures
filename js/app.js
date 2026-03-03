@@ -414,6 +414,20 @@ function showAiStatus(type, message) {
   }
 }
 
+function showPasteFallback() {
+  if (!aiStatus) return;
+  aiStatus.style.display = "block";
+  aiStatus.className = "ai-status error";
+  aiStatus.innerHTML = `
+    <div>Ce site bloque l'acc\u00e8s automatique. Copiez-collez le contenu de l'annonce ci-dessous :</div>
+    <textarea id="ai-paste-text" class="ai-paste-textarea" rows="6" placeholder="Collez ici le texte de l'offre d'emploi..."></textarea>
+    <button type="button" id="btn-analyze-paste" class="btn btn-primary btn-sm" style="margin-top:8px">Analyser le texte coll\u00e9</button>
+  `;
+  document
+    .getElementById("btn-analyze-paste")
+    ?.addEventListener("click", analyzePastedText);
+}
+
 function fillFormFromAI(data) {
   const fields = [
     "company",
@@ -475,7 +489,11 @@ async function analyzeJobUrl() {
     const data = await res.json();
 
     if (!res.ok) {
-      showAiStatus("error", data.error || "Erreur lors de l'analyse");
+      if (data.fetchFailed) {
+        showPasteFallback();
+      } else {
+        showAiStatus("error", data.error || "Erreur lors de l'analyse");
+      }
       return;
     }
 
@@ -485,6 +503,53 @@ async function analyzeJobUrl() {
     showAiStatus("error", "Erreur de connexion au service d'analyse");
   } finally {
     btnAnalyze.disabled = false;
+  }
+}
+
+async function analyzePastedText() {
+  const textarea = document.getElementById("ai-paste-text");
+  const text = textarea?.value.trim();
+
+  if (!text || text.length < 30) {
+    showAiStatus(
+      "error",
+      "Collez le texte complet de l'annonce (au moins quelques lignes)",
+    );
+    return;
+  }
+
+  showAiStatus("loading", "Analyse du texte en cours...");
+
+  try {
+    const profilePayload = profile
+      ? {
+          fullName: profile.fullName,
+          jobTitle: profile.jobTitle,
+          accroche: profile.accroche,
+          letterExperience: profile.letterExperience,
+          skills: profile.skills,
+          qualities: profile.qualities,
+          tools: profile.tools,
+        }
+      : null;
+
+    const res = await fetch("/api/analyze-job", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, profile: profilePayload }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showAiStatus("error", data.error || "Erreur lors de l'analyse");
+      return;
+    }
+
+    fillFormFromAI(data);
+    showAiStatus("success", "Formulaire rempli automatiquement !");
+  } catch (err) {
+    showAiStatus("error", "Erreur de connexion au service d'analyse");
   }
 }
 

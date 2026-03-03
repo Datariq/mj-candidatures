@@ -841,6 +841,27 @@ body {
   }
 }
 
+.ai-paste-textarea {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: "Inter", sans-serif;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.5;
+}
+
+.ai-paste-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(200, 164, 90, 0.15);
+}
+
 /* ── RESPONSIVE ── */
 @media (min-width: 768px) {
   .view {

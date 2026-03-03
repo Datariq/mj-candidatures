@@ -8,73 +8,77 @@ module.exports = async (req, res) => {
   if (req.method !== "POST")
     return res.status(405).json({ error: "Method not allowed" });
 
-  const { url, profile } = req.body || {};
+  const { url, text: rawText, profile } = req.body || {};
 
-  // Validate URL
-  if (!url || typeof url !== "string") {
-    return res.status(422).json({ error: "URL manquante ou invalide" });
-  }
+  let text;
 
-  let parsed;
-  try {
-    parsed = new URL(url);
-    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
-  } catch {
-    return res.status(422).json({ error: "URL invalide" });
-  }
+  if (rawText && typeof rawText === "string" && rawText.trim().length > 30) {
+    // Direct text mode: user pasted the job description
+    text = rawText.trim().slice(0, 12000);
+  } else if (url && typeof url === "string") {
+    // URL mode: fetch and extract text from page
+    let parsed;
+    try {
+      parsed = new URL(url);
+      if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+    } catch {
+      return res.status(422).json({ error: "URL invalide" });
+    }
 
-  // Fetch the job page
-  let html;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    const response = await fetch(parsed.href, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-      },
-    });
-    clearTimeout(timeout);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    html = await response.text();
-  } catch (err) {
+    let html;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const response = await fetch(parsed.href, {
+        signal: controller.signal,
+        redirect: "follow",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        },
+      });
+      clearTimeout(timeout);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      html = await response.text();
+    } catch (err) {
+      return res.status(422).json({
+        error:
+          "Impossible d'acceder a cette page : " + (err.message || "timeout"),
+        fetchFailed: true,
+      });
+    }
+
+    // Strip HTML to plain text
+    text = html;
+    text = text.replace(/<script[\s\S]*?<\/script>/gi, " ");
+    text = text.replace(/<style[\s\S]*?<\/style>/gi, " ");
+    text = text.replace(/<nav[\s\S]*?<\/nav>/gi, " ");
+    text = text.replace(/<footer[\s\S]*?<\/footer>/gi, " ");
+    text = text.replace(/<[^>]+>/g, " ");
+    text = text.replace(/&nbsp;/g, " ");
+    text = text.replace(/&amp;/g, "&");
+    text = text.replace(/&lt;/g, "<");
+    text = text.replace(/&gt;/g, ">");
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#39;/g, "'");
+    text = text.replace(/\s+/g, " ").trim();
+
+    if (text.length < 50) {
+      return res.status(422).json({
+        error: "Le contenu de la page est trop court pour etre analyse",
+        fetchFailed: true,
+      });
+    }
+
+    text = text.slice(0, 12000);
+  } else {
     return res.status(422).json({
-      error:
-        "Impossible d'acceder a cette page : " + (err.message || "timeout"),
+      error: "URL ou texte de l'offre manquant",
     });
   }
-
-  // Strip HTML to plain text
-  let text = html;
-  // Remove script, style, nav, footer, header tags and their content
-  text = text.replace(/<script[\s\S]*?<\/script>/gi, " ");
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, " ");
-  text = text.replace(/<nav[\s\S]*?<\/nav>/gi, " ");
-  text = text.replace(/<footer[\s\S]*?<\/footer>/gi, " ");
-  // Remove all HTML tags
-  text = text.replace(/<[^>]+>/g, " ");
-  // Decode HTML entities
-  text = text.replace(/&nbsp;/g, " ");
-  text = text.replace(/&amp;/g, "&");
-  text = text.replace(/&lt;/g, "<");
-  text = text.replace(/&gt;/g, ">");
-  text = text.replace(/&quot;/g, '"');
-  text = text.replace(/&#39;/g, "'");
-  // Collapse whitespace
-  text = text.replace(/\s+/g, " ").trim();
-
-  if (text.length < 50) {
-    return res.status(422).json({
-      error: "Le contenu de la page est trop court pour etre analyse",
-    });
-  }
-
-  // Truncate to 12000 chars
-  text = text.slice(0, 12000);
 
   // Build profile context for OpenAI
   const profileContext = profile
