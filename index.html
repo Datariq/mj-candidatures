@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#1a2744" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta
+      name="description"
+      content="Gestion des candidatures — Marie Julien"
+    />
+    <title>MJ Candidatures</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="assets/icon-192.png" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"
+      defer
+    ></script>
+  </head>
+  <body>
+    <!-- ═══ LOGIN SCREEN ═══ -->
+    <div id="login-screen" class="login-screen">
+      <form id="login-form" class="login-card">
+        <div class="login-logo">MJ</div>
+        <h1 class="login-title">MJ Candidatures</h1>
+        <p class="login-subtitle">Marie Julien</p>
+
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <input
+            type="email"
+            id="login-email"
+            required
+            placeholder="votre@email.com"
+            autocomplete="email"
+          />
+        </div>
+        <div class="form-group">
+          <label for="login-password">Mot de passe</label>
+          <input
+            type="password"
+            id="login-password"
+            required
+            placeholder="Votre mot de passe"
+            minlength="6"
+            autocomplete="current-password"
+          />
+        </div>
+
+        <div id="login-error" class="login-error"></div>
+
+        <div class="login-actions">
+          <button
+            type="submit"
+            class="btn btn-accent btn-block"
+            data-action="login"
+          >
+            Connexion
+          </button>
+          <button
+            type="submit"
+            class="btn btn-outline btn-block"
+            data-action="signup"
+          >
+            Créer un compte
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ═══ APP SHELL (hidden until authenticated) ═══ -->
+    <div id="app-shell" style="display: none">
+      <!-- ═══ HEADER ═══ -->
+      <header class="app-header">
+        <div class="logo">MJ</div>
+        <div>
+          <h1>MJ Candidatures</h1>
+          <div class="subtitle">Marie Julien</div>
+        </div>
+        <button
+          id="btn-install"
+          class="btn btn-accent btn-sm"
+          style="display: none; margin-left: auto"
+        >
+          Installer
+        </button>
+        <button id="btn-logout" class="btn-logout" title="Déconnexion">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            width="20"
+            height="20"
+          >
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
+      </header>
+
+      <!-- ═══ VIEW: CANDIDATURES LIST ═══ -->
+      <section id="view-list" class="view active">
+        <div class="filter-bar">
+          <button class="filter-chip active" data-filter="all">Toutes</button>
+          <button class="filter-chip" data-filter="brouillon">Brouillon</button>
+          <button class="filter-chip" data-filter="envoyée">Envoyée</button>
+          <button class="filter-chip" data-filter="relancée">Relancée</button>
+          <button class="filter-chip" data-filter="entretien">Entretien</button>
+          <button class="filter-chip" data-filter="refusée">Refusée</button>
+          <button class="filter-chip" data-filter="acceptée">Acceptée</button>
+        </div>
+        <div id="app-list"></div>
+      </section>
+
+      <!-- ═══ VIEW: NEW / EDIT FORM ═══ -->
+      <section id="view-form" class="view">
+        <form id="candidature-form" class="card">
+          <div class="form-section">
+            <h3>Entreprise</h3>
+            <div class="form-group">
+              <label for="field-company">Nom de l'entreprise *</label>
+              <input
+                type="text"
+                id="field-company"
+                required
+                placeholder="Ex : Airbus, BNP Paribas..."
+              />
+            </div>
+            <div class="form-group">
+              <label for="field-address">Adresse</label>
+              <input
+                type="text"
+                id="field-address"
+                placeholder="12 rue de la Paix"
+              />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="field-postalCode">Code postal</label>
+                <input type="text" id="field-postalCode" placeholder="75001" />
+              </div>
+              <div class="form-group">
+                <label for="field-city">Ville</label>
+                <input type="text" id="field-city" placeholder="Paris" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="field-recruiter">Nom du recruteur</label>
+              <input
+                type="text"
+                id="field-recruiter"
+                placeholder="M. Dupont / Mme Martin"
+              />
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Poste</h3>
+            <div class="form-group">
+              <label for="field-jobTitle">Intitulé du poste *</label>
+              <input
+                type="text"
+                id="field-jobTitle"
+                required
+                placeholder="Coordinatrice de Projets"
+              />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="field-reference">Référence de l'offre</label>
+                <input
+                  type="text"
+                  id="field-reference"
+                  placeholder="REF-2024-001"
+                />
+              </div>
+              <div class="form-group">
+                <label for="field-date">Date</label>
+                <input type="text" id="field-date" placeholder="3 mars 2026" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Personnalisation de la lettre</h3>
+            <div class="form-group">
+              <label for="field-skillsParagraph">Paragraphe compétences</label>
+              <textarea
+                id="field-skillsParagraph"
+                placeholder="Mon parcours m'a également amenée à évoluer dans des environnements variés... Cette polyvalence me permet de piloter efficacement des projets transversaux au sein de votre structure."
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label for="field-motivationParagraph"
+                >Paragraphe motivation</label
+              >
+              <textarea
+                id="field-motivationParagraph"
+                placeholder="Motivée par les valeurs de votre entreprise et son expertise dans..., je serais ravie d'échanger avec vous afin de vous présenter plus en détail ma candidature."
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button type="submit" class="btn btn-accent" style="flex: 1">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                width="18"
+                height="18"
+              >
+                <path d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path d="M12 9v6" />
+              </svg>
+              Aperçu
+            </button>
+            <button type="button" id="btn-save-draft" class="btn btn-outline">
+              Sauvegarder brouillon
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ═══ VIEW: PREVIEW & EXPORT ═══ -->
+      <section id="view-preview" class="view">
+        <div class="preview-frame">
+          <iframe
+            id="preview-iframe"
+            title="Aperçu lettre de motivation"
+          ></iframe>
+        </div>
+        <div class="preview-actions">
+          <button id="btn-pdf-letter" class="btn btn-accent btn-sm">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+            >
+              <path
+                d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"
+              />
+            </svg>
+            PDF Lettre
+          </button>
+          <button id="btn-pdf-cv" class="btn btn-outline btn-sm">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+            >
+              <path
+                d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"
+              />
+            </svg>
+            PDF CV
+          </button>
+          <button id="btn-copy-email" class="btn btn-primary btn-sm">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+            >
+              <path
+                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3"
+              />
+            </svg>
+            Copier email
+          </button>
+          <button id="btn-mailto" class="btn btn-outline btn-sm">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+            >
+              <path
+                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+              />
+            </svg>
+            Ouvrir Mail
+          </button>
+        </div>
+        <div style="margin-top: 12px">
+          <button id="btn-mark-sent" class="btn btn-primary btn-block btn-sm">
+            Marquer comme envoyée
+          </button>
+        </div>
+      </section>
+
+      <!-- ═══ VIEW: CV ═══ -->
+      <section id="view-cv" class="view">
+        <div class="cv-frame">
+          <iframe id="cv-iframe" title="CV Marie Julien"></iframe>
+        </div>
+        <div style="margin-top: 12px">
+          <button
+            id="btn-pdf-cv-2"
+            class="btn btn-accent btn-block btn-sm"
+            onclick="document.getElementById('btn-pdf-cv').click()"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+            >
+              <path
+                d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"
+              />
+            </svg>
+            Télécharger le CV en PDF
+          </button>
+        </div>
+      </section>
+
+      <!-- ═══ DETAIL MODAL ═══ -->
+      <div id="detail-modal" class="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Détails</h2>
+            <button class="modal-close">&times;</button>
+          </div>
+          <div id="detail-body"></div>
+        </div>
+      </div>
+
+      <!-- ═══ TOAST ═══ -->
+      <div id="toast" class="toast"></div>
+
+      <!-- ═══ BOTTOM NAV ═══ -->
+      <nav class="bottom-nav">
+        <button class="nav-item active" data-view="list">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+            />
+          </svg>
+          <span>Candidatures</span>
+        </button>
+        <button class="nav-item" data-view="form">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M12 4v16m8-8H4" />
+          </svg>
+          <span>Nouvelle</span>
+        </button>
+        <button class="nav-item" data-view="preview">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+          <span>Aperçu</span>
+        </button>
+        <button class="nav-item" data-view="cv">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
+          <span>Mon CV</span>
+        </button>
+      </nav>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
