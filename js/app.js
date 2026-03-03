@@ -17,7 +17,7 @@ import {
   generateMailtoLink,
   copyToClipboard,
 } from "./email-generator.js";
-import { signIn, signUp, signOut, getUser, onAuthStateChange } from "./auth.js";
+import { signIn, signOut, getUser, onAuthStateChange } from "./auth.js";
 
 // ── State ──
 let currentView = "list";
@@ -68,14 +68,7 @@ loginForm?.addEventListener("submit", async (e) => {
   loginError.textContent = "";
 
   try {
-    if (action === "signup") {
-      await signUp(email, password);
-      loginError.style.color = "var(--accent)";
-      loginError.textContent =
-        "Compte créé ! Vérifiez vos emails pour confirmer, puis connectez-vous.";
-    } else {
-      await signIn(email, password);
-    }
+    await signIn(email, password);
   } catch (err) {
     loginError.style.color = "#ef4444";
     loginError.textContent = err.message || "Erreur de connexion";
