@@ -440,7 +440,26 @@ body {
 .btn-group {
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
+}
+
+.btn-group-equal {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-group-equal > .btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-group-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-group-stack > .btn {
+  width: 100%;
 }
 
 /* ── PREVIEW ── */
@@ -467,6 +486,12 @@ body {
   gap: 10px;
 }
 
+.preview-send-action {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
 /* ── CV VIEW ── */
 .cv-frame {
   background: #f0f0f0;
@@ -482,6 +507,70 @@ body {
   border: none;
   background: #fff;
   border-radius: 4px;
+}
+
+.cv-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cv-actions > .btn {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── FORM STICKY ACTIONS ── */
+.form-actions-sticky {
+  position: sticky;
+  bottom: var(--bottom-bar-height);
+  z-index: 10;
+  background: var(--surface);
+  padding: 14px 20px;
+  margin: 0 -20px -20px;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  border-radius: 0 0 var(--radius) var(--radius);
+  display: flex;
+  gap: 10px;
+}
+
+.form-actions-sticky > .btn {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── MODAL ACTIONS ── */
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.modal-actions > .btn {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── DETAIL DOCUMENTS ── */
+.detail-docs {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-docs-label {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.detail-docs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 /* ── STATUS SELECT ── */
@@ -671,7 +760,37 @@ body {
   gap: 10px;
 }
 
-/* ── LOGOUT BUTTON ── */
+/* ── HEADER ACTION BUTTONS ── */
+.btn-install {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-left: auto;
+  background: none;
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-install:hover {
+  background: var(--accent);
+  color: var(--navy-dark);
+}
+
+.btn-install svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.btn-install-label {
+  display: none;
+}
+
 .btn-logout {
   background: none;
   border: none;
@@ -684,6 +803,7 @@ body {
   justify-content: center;
   border-radius: 50%;
   transition: all var(--transition);
+  flex-shrink: 0;
 }
 
 .btn-logout:hover {
@@ -781,6 +901,25 @@ body {
   min-height: 60px;
 }
 
+.profile-actions-sticky {
+  position: sticky;
+  bottom: var(--bottom-bar-height);
+  z-index: 10;
+  background: var(--surface);
+  padding: 14px 20px;
+  margin: 0 -20px -20px;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  border-radius: 0 0 var(--radius) var(--radius);
+  display: flex;
+  gap: 10px;
+}
+
+.profile-actions-sticky > .btn {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ── AI SECTION ── */
 .ai-section {
   background: var(--accent-light);
@@ -872,6 +1011,10 @@ body {
     grid-template-columns: repeat(4, 1fr);
   }
 
+  .preview-send-action {
+    max-width: 50%;
+  }
+
   .app-header {
     padding: 16px 32px;
   }
@@ -891,6 +1034,28 @@ body {
     border-radius: var(--radius);
     max-height: 70vh;
   }
+
+  .form-actions-sticky {
+    margin: 0 -20px -20px;
+    padding: 14px 20px;
+  }
+
+  .profile-actions-sticky {
+    margin: 0 -20px -20px;
+    padding: 14px 20px;
+  }
+
+  .btn-install {
+    border-radius: 20px;
+    padding: 6px 14px;
+  }
+
+  .btn-install-label {
+    display: inline;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
 }
 
 @media (max-width: 767px) {
@@ -900,6 +1065,22 @@ body {
   }
 
   .ai-input-row .btn {
+    width: 100%;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions > .btn {
+    width: 100%;
+  }
+
+  .cv-actions {
+    flex-direction: column;
+  }
+
+  .cv-actions > .btn {
     width: 100%;
   }
 }

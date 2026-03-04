@@ -14,7 +14,7 @@ import {
 } from "./storage.js";
 import { generateLetter } from "../templates/letter-template.js";
 import { generateCV } from "../templates/cv-template.js";
-import { generatePDF, generatePDFBlob } from "./pdf-generator.js";
+import { generatePDF, generatePDFBlob } from "./pdf-generator.js?v=3";
 import {
   generateEmailText,
   generateMailtoLink,
@@ -211,9 +211,9 @@ window.appShowDetail = async function (id) {
     const docs = await listDocuments(app.id);
     if (docs.length > 0) {
       docsHtml = `
-        <div class="detail-row" style="flex-direction:column;gap:8px">
-          <span class="detail-label">Documents</span>
-          <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="detail-docs">
+          <div class="detail-docs-label">Documents</div>
+          <div class="detail-docs-list">
             ${docs.map((d) => `<button class="btn btn-outline btn-sm" onclick="window.appDownloadDoc('${d.path}', '${escapeHtml(d.name)}')">${escapeHtml(d.name)}</button>`).join("")}
           </div>
         </div>`;
@@ -260,7 +260,7 @@ window.appShowDetail = async function (id) {
       </span>
     </div>
     ${docsHtml}
-    <div style="margin-top:16px" class="btn-group">
+    <div class="modal-actions">
       <button class="btn btn-primary btn-sm" onclick="window.appEditApplication(${app.id})">Modifier</button>
       <button class="btn btn-outline btn-sm" onclick="window.appPreviewApplication(${app.id})">Aper\u00e7u</button>
       <button class="btn btn-danger btn-sm" onclick="window.appDeleteApplication(${app.id})">Supprimer</button>
@@ -630,8 +630,26 @@ document.getElementById("btn-mailto")?.addEventListener("click", async () => {
   if (!currentEditId) return;
   const app = await getApplicationById(currentEditId);
   if (!app) return;
+
+  showToast("Téléchargement des PDF en cours...");
+
+  // Generate and download both PDFs first
+  try {
+    const letterHtml = generateLetter(app, profile);
+    const letterFilename = pdfName("letter", app);
+    await generatePDF(letterHtml, letterFilename);
+
+    const cvHtml = generateCV(profile);
+    const cvFilename = pdfName("cv");
+    await generatePDF(cvHtml, cvFilename);
+  } catch {
+    // Continue even if PDF generation fails
+  }
+
+  // Then open mailto
   const link = generateMailtoLink(app, profile);
   window.open(link, "_blank");
+  showToast("Pensez à joindre les PDF téléchargés à votre email");
 });
 
 document
@@ -652,14 +670,14 @@ function renderCVView() {
       <div class="cv-frame">
         <iframe id="cv-iframe-inner" title="CV"></iframe>
       </div>
-      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-        <button id="btn-pdf-cv-inner" class="btn btn-accent btn-sm" style="flex:1">
+      <div class="cv-actions">
+        <button id="btn-pdf-cv-inner" class="btn btn-accent btn-sm">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
             <path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"/>
           </svg>
           T\u00e9l\u00e9charger le CV en PDF
         </button>
-        <button id="btn-edit-profile" class="btn btn-outline btn-sm" style="flex:1">
+        <button id="btn-edit-profile" class="btn btn-outline btn-sm">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -769,8 +787,8 @@ function renderProfileEditor(container) {
         </div>
       </details>
 
-      <div class="btn-group" style="margin-top:20px">
-        <button type="button" id="btn-save-profile" class="btn btn-accent" style="flex:1">Sauvegarder</button>
+      <div class="profile-actions-sticky">
+        <button type="button" id="btn-save-profile" class="btn btn-accent">Sauvegarder</button>
         <button type="button" id="btn-cancel-profile" class="btn btn-outline">Retour au CV</button>
       </div>
     </div>

@@ -143,10 +143,6 @@ export function generateLetter(data, profile) {
         font-family: "Playfair Display", serif; font-size: 1.1rem;
         font-weight: 700; color: var(--navy);
       }
-      .signature-title {
-        font-size: 0.72rem; color: var(--accent);
-        text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500;
-      }
       .letter-footer {
         background: var(--navy); padding: 12px 44px;
         display: flex; justify-content: center; gap: 28px;
@@ -212,7 +208,6 @@ export function generateLetter(data, profile) {
 
         <div class="signature-block">
           <div class="signature-name">${esc(p.fullName)}</div>
-          <div class="signature-title">${esc(p.jobTitle)}</div>
         </div>
       </div>
 
