@@ -1,4 +1,4 @@
-const CACHE_NAME = "mj-candidatures-v4";
+const CACHE_NAME = "mj-candidatures-v5";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -15,7 +15,6 @@ const STATIC_ASSETS = [
 ];
 
 const CDN_ASSETS = [
-  "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
   "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap",
 ];
