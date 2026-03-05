@@ -26,13 +26,24 @@ module.exports = async (req, res) => {
     });
 
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+
+    // Emulate screen media BEFORE setting content so CSS @media print rules are ignored
     await page.emulateMediaType("screen");
 
+    await page.setContent(html, {
+      waitUntil: ["networkidle0", "domcontentloaded"],
+      timeout: 15000,
+    });
+
+    // Wait for Google Fonts to load
+    await page.evaluateHandle("document.fonts.ready");
+
+    // A4 at 96dpi = 794px wide; our content is 850px → scale to fit
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      scale: 0.935,
+      margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" },
     });
 
     res.setHeader("Content-Type", "application/pdf");
