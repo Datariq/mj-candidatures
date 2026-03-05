@@ -630,26 +630,9 @@ document.getElementById("btn-mailto")?.addEventListener("click", async () => {
   if (!currentEditId) return;
   const app = await getApplicationById(currentEditId);
   if (!app) return;
-
-  showToast("Téléchargement des PDF en cours...");
-
-  // Generate and download both PDFs first
-  try {
-    const letterHtml = generateLetter(app, profile);
-    const letterFilename = pdfName("letter", app);
-    await generatePDF(letterHtml, letterFilename);
-
-    const cvHtml = generateCV(profile);
-    const cvFilename = pdfName("cv");
-    await generatePDF(cvHtml, cvFilename);
-  } catch {
-    // Continue even if PDF generation fails
-  }
-
-  // Then open mailto
   const link = generateMailtoLink(app, profile);
   window.open(link, "_blank");
-  showToast("Pensez à joindre les PDF téléchargés à votre email");
+  showToast("Pensez à joindre votre CV et lettre en PJ");
 });
 
 document

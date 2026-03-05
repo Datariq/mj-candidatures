@@ -36,7 +36,7 @@ async function preparePDFElement(htmlContent) {
   if (iframe.contentWindow.document.fonts) {
     await iframe.contentWindow.document.fonts.ready;
   }
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await new Promise((resolve) => setTimeout(resolve, 100));
 
   const sourceElement = iframeDoc.querySelector(".page");
   if (!sourceElement) {
@@ -59,7 +59,7 @@ async function preparePDFElement(htmlContent) {
   if (document.fonts) {
     await document.fonts.ready;
   }
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => setTimeout(resolve, 50));
 
   return { element: clonedPage, container };
 }
