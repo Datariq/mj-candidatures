@@ -14,7 +14,7 @@ import {
 } from "./storage.js";
 import { generateLetter } from "../templates/letter-template.js";
 import { generateCV } from "../templates/cv-template.js";
-import { generatePDF, generatePDFBlob } from "./pdf-generator.js?v=3";
+import { generatePDF, generatePDFBlob } from "./pdf-generator.js?v=4";
 import {
   generateEmailText,
   generateMailtoLink,

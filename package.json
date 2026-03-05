@@ -1,0 +1,25 @@
+{
+  "name": "cv-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Datariq/mj-candidatures.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Datariq/mj-candidatures/issues"
+  },
+  "homepage": "https://github.com/Datariq/mj-candidatures#readme",
+  "dependencies": {
+    "@sparticuz/chromium": "^143.0.4",
+    "puppeteer-core": "^24.38.0"
+  }
+}
