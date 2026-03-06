@@ -105,7 +105,10 @@ export async function uploadDocument(blob, applicationId, filename) {
   const path = `${user.user.id}/${applicationId}/${filename}`;
   const { error } = await supabase.storage
     .from("documents")
-    .upload(path, blob, { upsert: true, contentType: "application/pdf" });
+    .upload(path, blob, {
+      upsert: true,
+      contentType: blob.type || "application/octet-stream",
+    });
   if (error) throw error;
   return path;
 }
@@ -252,11 +255,11 @@ export const DEFAULT_PROFILE = {
 export async function getProfile() {
   const { data, error } = await supabase
     .from("profiles")
-    .select("data")
+    .select("data, updated_at")
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return { ...DEFAULT_PROFILE, ...data.data };
+  return { ...DEFAULT_PROFILE, ...data.data, _updatedAt: data.updated_at };
 }
 
 export async function saveProfile(profileData) {
@@ -279,6 +282,42 @@ export async function saveProfile(profileData) {
   }
 }
 
+// ── CV Cache ──
+
+export async function uploadCVCache(blob, filename) {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user?.user) throw new Error("Not authenticated");
+  const folder = `${user.user.id}/cv`;
+  // Clear old cached files
+  const { data: existing } = await supabase.storage
+    .from("documents")
+    .list(folder);
+  if (existing && existing.length > 0) {
+    const paths = existing.map((f) => `${folder}/${f.name}`);
+    await supabase.storage.from("documents").remove(paths);
+  }
+  const path = `${folder}/${filename}`;
+  const { error } = await supabase.storage
+    .from("documents")
+    .upload(path, blob, { upsert: true, contentType: "application/pdf" });
+  if (error) throw error;
+  return path;
+}
+
+export async function getCVCacheInfo() {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user?.user) return null;
+  const folder = `${user.user.id}/cv`;
+  const { data, error } = await supabase.storage.from("documents").list(folder);
+  if (error || !data || data.length === 0) return null;
+  const file = data[0];
+  return {
+    path: `${folder}/${file.name}`,
+    name: file.name,
+    updatedAt: file.updated_at,
+  };
+}
+
 // ── Statuses ──
 
 export const STATUSES = [
@@ -288,4 +327,5 @@ export const STATUSES = [
   { value: "entretien", label: "Entretien", color: "#8b5cf6" },
   { value: "refus\u00e9e", label: "Refus\u00e9e", color: "#ef4444" },
   { value: "accept\u00e9e", label: "Accept\u00e9e", color: "#22c55e" },
+  { value: "archiv\u00e9e", label: "Archiv\u00e9e", color: "#94a3b8" },
 ];

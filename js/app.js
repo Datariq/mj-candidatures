@@ -11,6 +11,8 @@ import {
   saveProfile,
   DEFAULT_PROFILE,
   STATUSES,
+  uploadCVCache,
+  getCVCacheInfo,
 } from "./storage.js";
 import { generateLetter } from "../templates/letter-template.js";
 import { generateCV } from "../templates/cv-template.js";
@@ -144,7 +146,7 @@ async function refreshList() {
 function renderList() {
   const filtered =
     currentFilter === "all"
-      ? applications
+      ? applications.filter((a) => a.status !== "archivée")
       : applications.filter((a) => a.status === currentFilter);
 
   if (filtered.length === 0) {
@@ -209,15 +211,27 @@ window.appShowDetail = async function (id) {
   let docsHtml = "";
   try {
     const docs = await listDocuments(app.id);
-    if (docs.length > 0) {
-      docsHtml = `
-        <div class="detail-docs">
-          <div class="detail-docs-label">Documents</div>
-          <div class="detail-docs-list">
-            ${docs.map((d) => `<button class="btn btn-outline btn-sm" onclick="window.appDownloadDoc('${d.path}', '${escapeHtml(d.name)}')">${escapeHtml(d.name)}</button>`).join("")}
-          </div>
-        </div>`;
-    }
+    const docsList =
+      docs.length > 0
+        ? docs
+            .map(
+              (d) =>
+                `<button class="btn btn-outline btn-sm" onclick="window.appDownloadDoc('${d.path}', '${escapeHtml(d.name)}')">${escapeHtml(d.name)}</button>`,
+            )
+            .join("")
+        : `<div style="font-size:0.8rem;color:var(--text-light)">Aucun document</div>`;
+    docsHtml = `
+      <div class="detail-docs">
+        <div class="detail-docs-label">Documents</div>
+        <div class="detail-docs-list">
+          ${docsList}
+        </div>
+        <input type="file" id="doc-upload-input" accept=".pdf,.doc,.docx,.jpg,.png,.jpeg" style="display:none">
+        <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="document.getElementById('doc-upload-input').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Ajouter un document
+        </button>
+      </div>`;
   } catch {
     // ignore
   }
@@ -267,6 +281,23 @@ window.appShowDetail = async function (id) {
     </div>
   `;
   modal.classList.add("active");
+
+  // File upload handler
+  const uploadInput = document.getElementById("doc-upload-input");
+  if (uploadInput) {
+    uploadInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        showToast("Upload en cours...");
+        await uploadDocument(file, app.id, file.name);
+        showToast("Document ajout\u00e9");
+        window.appShowDetail(app.id);
+      } catch (err) {
+        showToast("Erreur upload : " + err.message);
+      }
+    });
+  }
 };
 
 window.appDownloadDoc = async function (path, filename) {
@@ -614,6 +645,43 @@ document.getElementById("btn-pdf-cv")?.addEventListener("click", async () => {
   }
 });
 
+// ── CV download with cache ──
+async function downloadCVWithCache() {
+  const filename = pdfName("cv");
+  showToast("Pr\u00e9paration du CV...");
+  try {
+    const cacheInfo = await getCVCacheInfo();
+    if (
+      cacheInfo &&
+      profile._updatedAt &&
+      new Date(cacheInfo.updatedAt) > new Date(profile._updatedAt)
+    ) {
+      // Cache is fresh — download directly
+      const url = await getDocumentUrl(cacheInfo.path);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.target = "_blank";
+      a.click();
+      showToast("CV t\u00e9l\u00e9charg\u00e9 (cache)");
+      return;
+    }
+  } catch {
+    // Cache check failed, fall through to regeneration
+  }
+  // Regenerate
+  showToast("G\u00e9n\u00e9ration du PDF...");
+  const html = generateCV(profile);
+  await generatePDF(html, filename);
+  try {
+    const blob = await generatePDFBlob(html, filename);
+    await uploadCVCache(blob, filename);
+    showToast("CV t\u00e9l\u00e9charg\u00e9 et mis en cache");
+  } catch {
+    showToast("CV t\u00e9l\u00e9charg\u00e9");
+  }
+}
+
 // Email buttons
 document
   .getElementById("btn-copy-email")
@@ -643,45 +711,110 @@ document
     showToast("Candidature marqu\u00e9e comme envoy\u00e9e");
   });
 
-// ── CV view ──
+// ── CV view (Profile Hub) ──
 function renderCVView() {
   const container = document.getElementById("cv-content");
   if (editingProfile) {
     renderProfileEditor(container);
-  } else {
-    container.innerHTML = `
-      <div class="cv-frame">
+    return;
+  }
+
+  const p = profile;
+  const genericLetter = generateLetter(
+    {
+      company: "votre entreprise",
+      jobTitle: "ce poste",
+      address: "",
+      city: "",
+      postalCode: "",
+      recruiter: "Madame, Monsieur",
+      reference: "",
+      motivationParagraph: "",
+      skillsParagraph: "",
+      date: new Date().toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    },
+    p,
+  );
+
+  const installSection = deferredPrompt
+    ? `
+    <div class="profile-hub-card">
+      <div class="section-heading">Installer l'application</div>
+      <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px">Installez MJ Candidatures sur votre appareil pour un acc\u00e8s rapide hors-ligne.</p>
+      <button id="btn-hub-install" class="btn btn-primary btn-sm btn-block">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Installer l'application
+      </button>
+    </div>`
+    : "";
+
+  container.innerHTML = `
+    <div class="profile-hub-card profile-hub-header">
+      <div class="profile-hub-avatar">${escapeHtml(p.initials)}</div>
+      <div>
+        <div style="font-weight:700;font-size:1.05rem;color:var(--navy)">${escapeHtml(p.fullName)}</div>
+        <div style="font-size:0.85rem;color:var(--accent);font-weight:500">${escapeHtml(p.jobTitle)}</div>
+        <div style="font-size:0.78rem;color:var(--text-light);margin-top:4px">${escapeHtml(p.email)} &middot; ${escapeHtml(p.phone)}</div>
+      </div>
+    </div>
+    <button id="btn-edit-profile" class="btn btn-outline btn-sm btn-block" style="margin-bottom:16px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+      Modifier mon profil
+    </button>
+
+    <div class="profile-hub-card">
+      <div class="section-heading">Mon CV</div>
+      <div class="hub-frame">
         <iframe id="cv-iframe-inner" title="CV"></iframe>
       </div>
-      <div class="cv-actions">
-        <button id="btn-pdf-cv-inner" class="btn btn-accent btn-sm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            <path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"/>
-          </svg>
-          T\u00e9l\u00e9charger le CV en PDF
-        </button>
-        <button id="btn-edit-profile" class="btn btn-outline btn-sm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-          Modifier mon profil
-        </button>
+      <button id="btn-pdf-cv-inner" class="btn btn-accent btn-sm btn-block" style="margin-top:12px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"/>
+        </svg>
+        T\u00e9l\u00e9charger CV PDF
+      </button>
+    </div>
+
+    <div class="profile-hub-card">
+      <div class="section-heading">Aper\u00e7u lettre type</div>
+      <div class="hub-frame hub-frame-sm">
+        <iframe id="letter-iframe-inner" title="Lettre type"></iframe>
       </div>
-    `;
-    const innerFrame = document.getElementById("cv-iframe-inner");
-    innerFrame.srcdoc = generateCV(profile);
-    document
-      .getElementById("btn-pdf-cv-inner")
-      .addEventListener("click", () => {
-        document.getElementById("btn-pdf-cv")?.click();
-      });
-    document
-      .getElementById("btn-edit-profile")
-      .addEventListener("click", () => {
-        editingProfile = true;
-        renderCVView();
-      });
+    </div>
+
+    ${installSection}
+  `;
+
+  // Populate iframes
+  document.getElementById("cv-iframe-inner").srcdoc = generateCV(p);
+  document.getElementById("letter-iframe-inner").srcdoc = genericLetter;
+
+  // Event listeners
+  document
+    .getElementById("btn-pdf-cv-inner")
+    .addEventListener("click", downloadCVWithCache);
+  document.getElementById("btn-edit-profile").addEventListener("click", () => {
+    editingProfile = true;
+    renderCVView();
+  });
+
+  const hubInstallBtn = document.getElementById("btn-hub-install");
+  if (hubInstallBtn && deferredPrompt) {
+    hubInstallBtn.addEventListener("click", async () => {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      hubInstallBtn.closest(".profile-hub-card").remove();
+    });
   }
 }
 
@@ -950,16 +1083,8 @@ let deferredPrompt;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  const installBtn = document.getElementById("btn-install");
-  if (installBtn) {
-    installBtn.style.display = "inline-flex";
-    installBtn.addEventListener("click", async () => {
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      installBtn.style.display = "none";
-    });
-  }
+  // Re-render profile hub if currently on that view to show install button
+  if (currentView === "cv" && !editingProfile) renderCVView();
 });
 
 if ("serviceWorker" in navigator) {
