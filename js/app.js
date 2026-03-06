@@ -760,7 +760,8 @@ function renderCVView() {
       <div>
         <div style="font-weight:700;font-size:1.05rem;color:var(--navy)">${escapeHtml(p.fullName)}</div>
         <div style="font-size:0.85rem;color:var(--accent);font-weight:500">${escapeHtml(p.jobTitle)}</div>
-        <div style="font-size:0.78rem;color:var(--text-light);margin-top:4px">${escapeHtml(p.email)} &middot; ${escapeHtml(p.phone)}</div>
+        <div style="font-size:0.75rem;color:var(--text-light);margin-top:4px;word-break:break-all">${escapeHtml(p.email)}</div>
+        <div style="font-size:0.75rem;color:var(--text-light)">${escapeHtml(p.phone)} &middot; ${escapeHtml(p.location)}</div>
       </div>
     </div>
     <button id="btn-edit-profile" class="btn btn-outline btn-sm btn-block" style="margin-bottom:16px">

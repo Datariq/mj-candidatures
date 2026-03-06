@@ -858,11 +858,13 @@ body {
   background: #f0f0f0;
   border-radius: var(--radius-sm);
   padding: 12px;
-  overflow: hidden;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .hub-frame iframe {
   width: 100%;
+  min-width: 600px;
   height: 380px;
   border: none;
   background: #fff;
@@ -1107,16 +1109,8 @@ body {
     padding: 14px 20px;
   }
 
-  .btn-install {
-    border-radius: 20px;
-    padding: 6px 14px;
-  }
-
-  .btn-install-label {
-    display: inline;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.3px;
+  .hub-frame iframe {
+    min-width: unset;
   }
 }
 
