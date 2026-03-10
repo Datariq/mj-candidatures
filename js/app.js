@@ -61,10 +61,11 @@ function showLogin() {
 }
 
 async function showApp() {
+  const alreadyVisible = appShell.style.display === "block";
   loginScreen.style.display = "none";
   appShell.style.display = "block";
   profile = (await getProfile()) || { ...DEFAULT_PROFILE };
-  navigate("list");
+  if (!alreadyVisible) navigate("list");
 }
 
 loginForm?.addEventListener("submit", async (e) => {
